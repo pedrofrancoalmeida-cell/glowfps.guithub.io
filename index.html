@@ -3,23 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlideStrike Offline</title>
-    <link rel="stylesheet" href="style.css">
+    <title>SlideStrike.io (P2P)</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0b0b0e; color: #fff; user-select: none;
+        }
+        #menu-container {
+            position: absolute; width: 100%; height: 100%;
+            background: radial-gradient(circle, #1a1a24 0%, #07070a 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10; transition: opacity 0.5s ease;
+        }
+        .panel {
+            background: rgba(15, 15, 25, 0.85); padding: 40px; border-radius: 12px;
+            border: 2px solid #00f3ff; box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            text-align: center; max-width: 400px; width: 90%;
+        }
+        h1 { margin-top: 0; color: #00f3ff; text-shadow: 0 0 10px rgba(0, 243, 255, 0.5); letter-spacing: 2px; font-size: 28px; }
+        input {
+            width: 100%; padding: 12px; margin: 15px 0; border-radius: 6px; box-sizing: border-box;
+            border: 1px solid #333; background: #12121a; color: #fff; font-size: 16px; text-align: center;
+        }
+        input:focus { border-color: #00f3ff; outline: none; }
+        button {
+            width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 6px;
+            font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: #00f3ff; color: #000; }
+        .btn-primary:hover { background: #00b8cc; box-shadow: 0 0 15px rgba(0, 243, 255, 0.4); }
+        .btn-secondary { background: #ff0055; color: #fff; }
+        .btn-secondary:hover { background: #cc0044; box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); }
+        
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; z-index: 5;
+        }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
+            border: 2px solid #00f3ff; border-radius: 50%; transform: translate(-50%, -50%);
+        }
+        #hp-display {
+            position: absolute; bottom: 30px; left: 30px; background: rgba(0,0,0,0.6);
+            padding: 15px 25px; border-radius: 8px; border-left: 5px solid #ff0055;
+            font-size: 24px; font-weight: bold;
+        }
+        #room-info {
+            position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.6);
+            padding: 10px 20px; border-radius: 6px; border: 1px solid #333; font-family: monospace;
+        }
+        #status-msg {
+            color: #aaa; font-size: 14px; margin-top: 5px; min-height: 20px;
+        }
+        #respawn-screen {
+            position: absolute; width: 100%; height: 100%; background: rgba(255,0,0,0.3);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 8; pointer-events: none;
+        }
+        #respawn-screen h2 { font-size: 48px; text-shadow: 0 0 10px #000; color: #ff0055; margin-bottom: 5px; }
+    </style>
 </head>
 <body>
 
     <div id="menu-container">
         <div class="panel">
-            <h1>SLIDESTRIKE OFF-LINE</h1>
-            <input type="text" id="nickname" placeholder="Seu Nickname" value="Jogador" maxlength="12">
-            <button class="btn-primary" id="btn-start">Iniciar Partida Local</button>
+            <h1>SLIDESTRIKE.IO</h1>
+            <input type="text" id="nickname" placeholder="Seu Nickname" maxlength="12" value="Jogador">
+            <button class="btn-primary" id="btn-create">Criar Sala (Host)</button>
+            <hr style="border: 0; border-top: 1px solid #222; margin: 20px 0;">
+            <input type="text" id="room-code" placeholder="Código da Sala">
+            <button class="btn-secondary" id="btn-join">Entrar na Sala</button>
+            <div id="status-msg"></div>
         </div>
     </div>
 
     <div id="hud">
         <div id="crosshair"></div>
         <div id="hp-display">HP: <span id="hp-val">100</span></div>
-        <div id="score-display">ELIMINAÇÕES: <span id="score-val">0</span></div>
+        <div id="room-info">SALA: <span id="room-val">-</span></div>
     </div>
 
     <div id="respawn-screen">
@@ -27,6 +89,8 @@
         <p>Ressurgindo em 3 segundos...</p>
     </div>
 
+    <!-- Bibliotecas Necessárias (Carregadas via CDN para rodar no github.io) -->
+    <script src="https://unpkg.com"></script>
     <script type="importmap">
         {
             "imports": {
@@ -35,6 +99,128 @@
             }
         }
     </script>
-    <script type="module" src="client.js"></script>
-</body>
-</html>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // Elementos DOM
+        const menuContainer = document.getElementById('menu-container');
+        const btnCreate = document.getElementById('btn-create');
+        const btnJoin = document.getElementById('btn-join');
+        const inputNick = document.getElementById('nickname');
+        const inputRoom = document.getElementById('room-code');
+        const hud = document.getElementById('hud');
+        const roomVal = document.getElementById('room-val');
+        const hpVal = document.getElementById('hp-val');
+        const respawnScreen = document.getElementById('respawn-screen');
+        const statusMsg = document.getElementById('status-msg');
+
+        // Estado do Jogo e Redes P2P
+        let peer = null;
+        let connections = {}; // Armazena conexões com outros players
+        let isHost = false;
+        let myId = null;
+        let myRoomCode = null;
+        let enemies = {};
+        let playerListData = {}; // Guarda posições de todos para sincronismo
+
+        // Inicialização do Cenário Gráfico (Three.js)
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050508);
+        scene.fog = new THREE.FogExp2(0x050508, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new PointerLockControls(camera, document.body);
+        scene.add(controls.getObject());
+
+        // Variáveis de Controle de Física e Estado local
+        const moveState = { forward: false, backward: false, left: false, right: false };
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let myHp = 100;
+        let isDead = false;
+
+        // Iluminação
+        scene.add(new THREE.AmbientLight(0x111122));
+        const dirLight = new THREE.DirectionalLight(0x5500aa, 0.6);
+        dirLight.position.set(20, 40, 20);
+        scene.add(dirLight);
+
+        // Chão e Grade Neon
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x111115, roughness: 0.8 }));
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        const gridHelper = new THREE.GridHelper(100, 50, 0x00f3ff, 0x222233);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        // Obstáculos
+        const boxGeo = new THREE.BoxGeometry(6, 8, 6);
+        const boxMat = new THREE.MeshStandardMaterial({ color: 0x151525, metalness: 0.2, roughness: 0.3 });
+        const obstaclePositions = [[-20, 4, 10], [0, 4, -25], [25, 4, -15], [-15, 4, -20]];
+
+        obstaclePositions.forEach(pos => {
+            const box = new THREE.Mesh(boxGeo, boxMat);
+            box.position.set(...pos);
+            scene.add(box);
+            const line = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo), new THREE.LineBasicMaterial({ color: 0xff0055, linewidth: 2 }));
+            line.position.set(...pos);
+            scene.add(line);
+        });
+
+        // Posicionamento Inicial Aleatório
+        resetLocalPlayerPosition();
+
+        // --- SISTEMA DE REDE P2P (PeerJS) ---
+
+        function generateRoomCode() {
+            return "SLIDE-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+        }
+
+        // Configura eventos da conexão de dados recebida
+        function setupDataConnection(conn) {
+            conn.on('data', (data) => {
+                if (data.type === 'updatePos') {
+                    playerListData[data.id] = { x: data.x, y: data.y, z: data.z, nickname: data.nickname };
+                    updateEnemyMeshes();
+                    
+                    // Se for o Host, replica a posição recebida para todos os outros membros conectados
+                    if (isHost) {
+                        broadcastToAll({ type: 'syncAll', players: playerListData }, conn.peer);
+                    }
+                } 
+                else if (data.type === 'syncAll') {
+                    playerListData = data.players;
+                    updateEnemyMeshes();
+                } 
+                else if (data.type === 'hit') {
+                    if (data.targetId === myId && !isDead) {
+                        myHp -= data.damage;
+                        hpVal.innerText = myHp;
+                        if (myHp <= 0) {
+                            triggerDeath();
+                        }
+                    }
+                }
+            });
+
+            conn.on('close', () => {
+                if (enemies[conn.peer]) {
+                    scene.remove(enemies[conn.peer].mesh);
+                    delete enemies[conn.peer];
+                }
+                delete connections[conn.peer];
+                delete playerListData[conn.peer];
+            });
+        }
+
+        function broadcastToAll(data, excludePeerId = null) {
+            for (let id in connections) {
+                if (id !== excludePeerId && connections[id].open) {
+                    connections[id].send(data);
