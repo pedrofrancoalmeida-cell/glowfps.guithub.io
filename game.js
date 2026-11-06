@@ -162,7 +162,13 @@ window.addEventListener('mousemove', e => {
     mouse.y = e.clientY;
 });
 window.addEventListener('mousedown', () => { if(isGameActive) player.shoot(); });
-document.getElementById('restartBtn').addEventListener('click', () => { init(); });
+
+// Garante que o DOM carregou antes de buscar o botão de reiniciar
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('restartBtn').addEventListener('click', () => { init(); });
+    init();
+    loop();
+});
 
 function init() {
     player = new Entity(0, 0, true, "Você (Player)");
@@ -299,7 +305,3 @@ function loop() {
         ctx.beginPath();
         ctx.arc(p.x - camX + canvas.width/2, p.y - camY + canvas.height/2, p.radius, 0, Math.PI*2);
         ctx.fill();
-        ctx.restore();
-    }
-
-    aliveCount = (player.health > 0 ? 1 : 0) + bots.length;
