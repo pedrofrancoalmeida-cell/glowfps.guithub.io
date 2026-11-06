@@ -303,14 +303,3 @@ function loop() {
 
     aliveCount = (player.health > 0 ? 1 : 0) + bots.length;
     document.getElementById('alive-count').textContent = aliveCount;
-
-    document.getElementById('zone-timer').textContent = ${Math.ceil(mapRadius)}m;
-if (aliveCount === 1 && player.health > 0 && isGameActive) {
-checkGameOver("VITÓRIA! 🎉", Você eliminou os adversários e venceu a partida com ${player.kills} Kills!);
-}
-requestAnimationFrame(loop);
-}
-// Inicia tudo imediatamente já que o script possui 'defer' no HTML
-document.getElementById('restartBtn').addEventListener('click', () => { init(); });
-init();
-loop();
