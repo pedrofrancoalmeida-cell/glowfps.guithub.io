@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SlideStrike Offline</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="menu-container">
+        <div class="panel">
+            <h1>SLIDESTRIKE OFF-LINE</h1>
+            <input type="text" id="nickname" placeholder="Seu Nickname" value="Jogador" maxlength="12">
+            <button class="btn-primary" id="btn-start">Iniciar Partida Local</button>
+        </div>
+    </div>
+
+    <div id="hud">
+        <div id="crosshair"></div>
+        <div id="hp-display">HP: <span id="hp-val">100</span></div>
+        <div id="score-display">ELIMINAÇÕES: <span id="score-val">0</span></div>
+    </div>
+
+    <div id="respawn-screen">
+        <h2>VOCÊ MORREU!</h2>
+        <p>Ressurgindo em 3 segundos...</p>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com",
+                "three/addons/": "https://unpkg.com"
+            }
+        }
+    </script>
+    <script type="module" src="client.js"></script>
+</body>
+</html>
